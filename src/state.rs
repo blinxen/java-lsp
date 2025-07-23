@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use lsp_types::Range;
+use lsp_types::{Range, Url};
 
 use crate::document::Document;
 
@@ -10,13 +10,17 @@ pub struct State {
 }
 
 impl State {
-    pub fn register_document(&mut self, uri: &str, content: &str) {
-        self.documents
-            .insert(uri.to_string(), Document::new(0, content));
+    pub fn get_document(&mut self, uri: &str) -> Option<&mut Document> {
+        self.documents.get_mut(uri)
     }
 
-    pub fn update_document(&mut self, uri: &str, version: i32, range: Option<&Range>, text: &str) {
-        if let Some(document) = self.documents.get_mut(uri) {
+    pub fn register_document(&mut self, uri: Url, content: &str) {
+        self.documents
+            .insert(uri.to_string(), Document::new(uri, 0, content));
+    }
+
+    pub fn update_document(&mut self, uri: Url, version: i32, range: Option<&Range>, text: &str) {
+        if let Some(document) = self.documents.get_mut(uri.as_str()) {
             // Ignore change requests that are older than the internal state
             if !document.should_update(version) {
                 return;
@@ -37,7 +41,7 @@ impl State {
             } else {
                 // If range is none then just replace the whole document
                 self.documents
-                    .insert(uri.to_string(), Document::new(version, text));
+                    .insert(uri.to_string(), Document::new(uri, version, text));
             }
         }
     }
