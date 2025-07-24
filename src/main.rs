@@ -2,6 +2,7 @@ mod configuration;
 mod document;
 mod event_loop;
 mod gradle;
+mod maven;
 mod state;
 
 use lsp_server::Connection;

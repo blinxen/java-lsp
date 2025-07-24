@@ -1,4 +1,4 @@
-use crate::gradle;
+use crate::{gradle, maven};
 use lsp_types::{Position, Url};
 use ropey::Rope;
 use std::{path::Path, process::Command};
@@ -111,7 +111,7 @@ impl Document {
         let mut classpath = String::new();
 
         if Path::new("./pom.xml").exists() {
-            todo!();
+            classpath = maven::generate_claspath();
         } else if Path::new("./build.gradle").exists()
             || Path::new("./build.gradle.kt").exists()
             || Path::new("./build.gradle.kts").exists()
