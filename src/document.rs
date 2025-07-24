@@ -1,7 +1,7 @@
-use std::process::Command;
-
+use crate::gradle;
 use lsp_types::{Position, Url};
 use ropey::Rope;
+use std::{path::Path, process::Command};
 
 #[derive(Debug)]
 pub struct CompileError {
@@ -63,14 +63,14 @@ impl Document {
         self.content.line_to_char(position.line as usize) + position.character as usize
     }
 
-    pub fn compile(&mut self, classpath: &str) {
+    pub fn compile(&mut self) {
         if let Ok(path) = self.uri.to_file_path()
             && path.exists()
         {
             // TODO: Support annotation processing
             let output = Command::new("javac")
                 .arg("--class-path")
-                .arg(classpath)
+                .arg(Self::determine_classpath())
                 .arg("-d")
                 .arg("target/classes")
                 // .arg("-Xlint:all")
@@ -105,5 +105,20 @@ impl Document {
                 }
             }
         }
+    }
+
+    fn determine_classpath() -> String {
+        let mut classpath = String::new();
+
+        if Path::new("./pom.xml").exists() {
+            todo!();
+        } else if Path::new("./build.gradle").exists()
+            || Path::new("./build.gradle.kt").exists()
+            || Path::new("./build.gradle.kts").exists()
+        {
+            classpath = gradle::generate_claspath();
+        }
+
+        classpath
     }
 }

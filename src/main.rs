@@ -1,5 +1,7 @@
+mod configuration;
 mod document;
 mod event_loop;
+mod gradle;
 mod state;
 
 use lsp_server::Connection;
@@ -9,6 +11,8 @@ use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     eprintln!("Starting java lsp server");
+    configuration::initialize_data_directory();
+
     let (connection, io_threads) = Connection::stdio();
     let mut state = State::default();
 

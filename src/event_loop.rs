@@ -85,7 +85,7 @@ pub fn start(
 }
 
 fn compile_and_publish_diagnostics(connection: &Connection, document: &mut Document) {
-    document.compile("");
+    document.compile();
     let errors = document
         .compile_errors()
         .iter()
