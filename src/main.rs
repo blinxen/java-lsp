@@ -1,10 +1,14 @@
+mod compiler;
 mod configuration;
+mod diagnostic;
 mod document;
-mod event_loop;
 mod gradle;
+mod handlers;
+mod main_loop;
 mod maven;
 mod state;
 
+use compiler::Compiler;
 use lsp_server::Connection;
 use lsp_types::{ServerCapabilities, TextDocumentSyncCapability, TextDocumentSyncKind};
 use state::State;
@@ -15,7 +19,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
     configuration::initialize_data_directory();
 
     let (connection, io_threads) = Connection::stdio();
-    let mut state = State::default();
+    let mut state = State::new(connection.sender.clone(), Compiler::new());
 
     // Run the server and wait for the two threads to end (typically by trigger LSP Exit event).
     let server_capabilities = serde_json::to_value(&ServerCapabilities {
@@ -36,7 +40,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         }
     };
 
-    event_loop::start(connection, initialization_params, &mut state)?;
+    main_loop::start(connection, initialization_params, &mut state)?;
     io_threads.join()?;
 
     eprintln!("Shutting down server");

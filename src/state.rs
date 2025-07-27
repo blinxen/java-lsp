@@ -1,15 +1,32 @@
 use std::collections::HashMap;
 
+use crate::{compiler::Compiler, document::Document};
+use crossbeam_channel::Sender;
+use lsp_server::Message;
 use lsp_types::{Range, Url};
 
-use crate::document::Document;
-
-#[derive(Default)]
 pub struct State {
     documents: HashMap<String, Document>,
+    pub compiler: Compiler,
+    pub sender: Sender<Message>,
 }
 
 impl State {
+    pub fn new(sender: Sender<Message>, compiler: Compiler) -> Self {
+        State {
+            sender,
+            documents: HashMap::new(),
+            compiler,
+        }
+    }
+
+    pub fn registered_documents(&mut self) -> Vec<&Url> {
+        self.documents
+            .values()
+            .map(|document| document.uri())
+            .collect()
+    }
+
     pub fn get_document(&mut self, uri: &str) -> Option<&mut Document> {
         self.documents.get_mut(uri)
     }
@@ -44,5 +61,9 @@ impl State {
                     .insert(uri.to_string(), Document::new(uri, version, text));
             }
         }
+    }
+
+    pub fn unregister_document(&mut self, uri: Url) {
+        self.documents.remove(&uri.to_string());
     }
 }
