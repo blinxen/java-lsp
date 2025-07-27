@@ -2,7 +2,7 @@ use crate::configuration::{GRADLE_CLASSPATH_TASK_NAME, gradle_init_script_path};
 use std::process::Command;
 
 pub fn generate_claspath() -> String {
-    let mut classpath = String::new();
+    let mut classpath = String::from("build/classes");
 
     // TODO: try to search for gradle and gradlew
     if let Ok(output) = Command::new("gradle")
@@ -12,7 +12,8 @@ pub fn generate_claspath() -> String {
         .arg(gradle_init_script_path().unwrap_or_default())
         .output()
     {
-        classpath = String::from_utf8(output.stdout).unwrap_or_default();
+        classpath += ":";
+        classpath += str::from_utf8(&output.stdout).unwrap_or_default();
     }
 
     classpath
