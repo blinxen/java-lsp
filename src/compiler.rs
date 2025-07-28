@@ -102,10 +102,6 @@ impl Compiler {
             ProjectKind::Gradle => String::from("build/classes"),
         }
     }
-
-    pub fn refresh_classpath(&mut self) {
-        self.classpath = determine_classpath(&self.project_kind);
-    }
 }
 
 fn determine_project_kind() -> ProjectKind {
@@ -141,17 +137,7 @@ fn find_files_to_compile(class_file_directory: String, force_all: bool) -> Vec<S
                     .map(|ext| ext == "class")
                     .unwrap_or(false)
         })
-        .map(|entry| {
-            (
-                std::fs::canonicalize(entry.path())
-                    .unwrap()
-                    .display()
-                    .to_string()
-                    .replace(".class", ""),
-                entry,
-            )
-        })
-        .collect::<HashMap<String, DirEntry>>();
+        .collect::<Vec<DirEntry>>();
 
     // TODO: Should we handle this? If yes then it should probably be done in the earlier stages
     WalkDir::new(std::env::current_dir().unwrap_or_default())
@@ -164,37 +150,56 @@ fn find_files_to_compile(class_file_directory: String, force_all: bool) -> Vec<S
                     .extension()
                     .map(|ext| ext == "java")
                     .unwrap_or(false)
-                && (force_all || should_build_file(&class_files, entry) == Some(true))
+                && (force_all || should_build_file(&class_files, entry))
         })
         .map(|entry| entry.path().display().to_string())
         .collect()
 }
 
-fn should_build_file(
-    class_files: &HashMap<String, DirEntry>,
-    java_file: &DirEntry,
-) -> Option<bool> {
+fn should_build_file(class_files: &Vec<DirEntry>, java_file: &DirEntry) -> bool {
     let mut should_build = true;
+    let java_path = java_file.path().with_extension("");
 
-    if let Some(file) =
-        class_files.get(&java_file.path().display().to_string().replace(".java", ""))
-        && let Ok(class_file_metadata) = file.metadata()
-    {
-        let java_file_metadata = java_file.metadata().ok()?;
+    let mut best_score = 0;
+    let mut best_match: Option<&DirEntry> = None;
 
-        if let Ok(class_file_modified) = class_file_metadata.modified()
-            && let Ok(java_file_modified) = java_file_metadata.modified()
-        {
-            if class_file_modified >= java_file_modified {
-                should_build = false;
+    // Compare path components and find the class file with the most identical path components
+    for class_file in class_files {
+        let class_file_path = class_file.path().with_extension("");
+        let mut class_path_components = class_file_path.components().rev();
+        let mut java_path_components = java_path.components().rev();
+
+        let mut matches = 0;
+
+        while let (Some(j), Some(c)) = (java_path_components.next(), class_path_components.next()) {
+            if j == c {
+                matches += 1;
+            } else {
+                break;
             }
-        } else if let Ok(class_file_created) = class_file_metadata.created()
-            && let Ok(java_file_created) = java_file_metadata.created()
-            && class_file_created >= java_file_created
-        {
-            should_build = false;
+        }
+
+        if matches > best_score {
+            best_score = matches;
+            best_match = Some(class_file);
         }
     }
 
-    Some(should_build)
+    if best_score > 0
+        && let Some(file) = best_match
+        && let Ok(class_file_metadata) = file.metadata()
+        && let Ok(java_file_metadata) = java_file.metadata()
+    {
+        if let Ok(class_file_modified) = class_file_metadata.modified()
+            && let Ok(java_file_modified) = java_file_metadata.modified()
+        {
+            should_build = class_file_modified < java_file_modified;
+        } else if let Ok(class_file_created) = class_file_metadata.created()
+            && let Ok(java_file_created) = java_file_metadata.created()
+        {
+            should_build = class_file_created < java_file_created;
+        }
+    }
+
+    should_build
 }
