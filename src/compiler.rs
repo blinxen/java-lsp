@@ -34,6 +34,10 @@ impl Compiler {
         }
     }
 
+    pub fn classpath(&self) -> &str {
+        &self.classpath
+    }
+
     pub fn compile(&self, force_all: bool) -> HashMap<Url, Vec<CompileError>> {
         let mut errors: HashMap<Url, Vec<CompileError>> = HashMap::new();
         let class_file_directory = self.class_file_target_directory();

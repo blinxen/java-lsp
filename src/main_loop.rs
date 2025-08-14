@@ -8,6 +8,7 @@ use lsp_types::{
         DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
         Notification,
     },
+    request::{GotoDefinition, Request},
 };
 use serde::de::DeserializeOwned;
 
@@ -21,15 +22,18 @@ pub fn start(
     for msg in &connection.receiver {
         match msg {
             Message::Request(request) => {
-                eprintln!("Got request {request:?}");
-                // Don't do anything if server should be shutdown
                 if connection.handle_shutdown(&request)? {
                     return Ok(());
                 }
+
+                match request.method.as_str() {
+                    GotoDefinition::METHOD => {
+                        handle_request(state, request, handlers::handle_go_to_definition)
+                    }
+                    _ => {}
+                };
             }
-            Message::Response(_response) => {
-                eprintln!("Client responses are not handled at the moment");
-            }
+            Message::Response(_reponse) => {}
             Message::Notification(notification) => {
                 match notification.method.as_str() {
                     DidOpenTextDocument::METHOD => {
@@ -66,6 +70,18 @@ pub fn start(
         }
     }
     Ok(())
+}
+
+fn handle_request<P>(
+    state: &mut State,
+    request: lsp_server::Request,
+    handler: fn(&mut State, P) -> (),
+) where
+    P: DeserializeOwned,
+{
+    if let Ok(params) = serde_json::from_value::<P>(request.params) {
+        handler(state, params);
+    }
 }
 
 fn handle_notification<P>(

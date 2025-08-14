@@ -9,26 +9,30 @@ use crate::{compiler::CompileError, diagnostic, state::State};
 
 pub fn handle_did_open_text_document(state: &mut State, params: DidOpenTextDocumentParams) {
     // TODO: Allow excluding files with configuration
-    state.register_document(params.text_document.uri.clone(), &params.text_document.text);
-    compile_and_publish_compile_errors(state);
+    match state.register_document(params.text_document.uri.clone(), &params.text_document.text) {
+        Ok(_) => compile_and_publish_compile_errors(state),
+        Err(error) => eprintln!("{error}"),
+    };
 }
 
 pub fn handle_did_change_text_document(state: &mut State, params: DidChangeTextDocumentParams) {
     for change in params.content_changes {
-        state.update_document(
+        match state.update_document(
             params.text_document.uri.clone(),
             params.text_document.version,
             change.range.as_ref(),
             &change.text,
-        );
+        ) {
+            Ok(_) => {}
+            Err(error) => eprintln!("{error}"),
+        };
     }
+
+    compile_and_publish_compile_errors(state);
 }
 
 pub fn handle_did_save_text_document(state: &mut State, params: DidSaveTextDocumentParams) {
-    if state
-        .get_document(params.text_document.uri.as_str())
-        .is_some()
-    {
+    if state.document(params.text_document.uri.as_str()).is_some() {
         compile_and_publish_compile_errors(state);
     }
 }
@@ -40,7 +44,7 @@ pub fn handle_did_close_text_document(state: &mut State, params: DidCloseTextDoc
 fn compile_and_publish_compile_errors(state: &mut State) {
     let errors = state.compiler.compile(false);
     let fixed_documents: HashMap<Url, Vec<CompileError>> = state
-        .registered_documents()
+        .documents_uri()
         .into_iter()
         .filter(|path| !errors.contains_key(path))
         .map(|url| (url.clone(), Vec::new()))

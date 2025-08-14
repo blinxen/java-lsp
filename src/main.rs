@@ -1,12 +1,16 @@
+mod classfile;
+mod classpath_indexer;
 mod compiler;
 mod configuration;
 mod diagnostic;
 mod document;
+mod errors;
 mod gradle;
 mod handlers;
 mod main_loop;
 mod maven;
 mod state;
+mod tree_sitter;
 
 use compiler::Compiler;
 use lsp_server::Connection;
@@ -26,6 +30,7 @@ fn main() -> Result<(), Box<dyn Error + Sync + Send>> {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
             TextDocumentSyncKind::INCREMENTAL,
         )),
+        definition_provider: Some(lsp_types::OneOf::Left(true)),
         ..Default::default()
     })
     .unwrap();
